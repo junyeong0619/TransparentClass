@@ -32,7 +32,7 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                 Set<String> currentFieldNames = Arrays.stream(psiClass.getFields()).map(PsiField::getName).collect(Collectors.toSet());
                 for (PsiField field : superClass.getFields()) {
                     if (!field.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !currentFieldNames.contains(field.getName())) {
-                        String hintText = String.format("↑ %s %s", field.getType().getPresentableText(), field.getName());
+                        String hintText = String.format("%s: %s %s", superClass.getName(),field.getType().getPresentableText(), field.getName());
                         sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, factory.text(hintText));
                     }
                 }
@@ -44,7 +44,7 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                     if (!method.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !method.isConstructor() && !currentMethodNames.contains(method.getName())) {
                         String signature = getMethodSignature(method);
                         if (processedSignatures.add(signature)) {
-                            String hintText = "↑ " + buildHintText(method);
+                            String hintText = superClass.getName()+ ": " + buildHintText(method);
                             sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, factory.text(hintText));
                         }
                     }
