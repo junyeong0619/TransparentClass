@@ -37,7 +37,12 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                 Set<String> currentFieldNames = Arrays.stream(psiClass.getFields()).map(PsiField::getName).collect(Collectors.toSet());
                 for (PsiField field : superClass.getFields()) {
                     if (!field.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !currentFieldNames.contains(field.getName())) {
-                        String hintText = String.format("%s: %s %s", superClass.getName(), field.getType().getPresentableText(), field.getName());
+                        String hintText;
+                        if(field.hasModifierProperty(PsiModifier.PROTECTED)) {
+                            hintText = String.format("%s %s %s", "protected", field.getType().getPresentableText(), field.getName());
+                        }else{
+                            hintText = String.format("%s %s %s", "public", field.getType().getPresentableText(), field.getName());
+                        }
                         InlayPresentation presentation = createClickablePresentation(factory, hintText, field);
                         sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, presentation);
                     }
@@ -49,8 +54,13 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                 for (PsiMethod method : superClass.getMethods()) {
                     if (!method.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !method.isConstructor() && !currentMethodNames.contains(method.getName())) {
                         String signature = getMethodSignature(method);
+                        String hintText;
                         if (processedSignatures.add(signature)) {
-                            String hintText = superClass.getName() + ": " + buildHintText(method);
+                            if(method.hasModifierProperty(PsiModifier.PROTECTED)){
+                                hintText =  "protected " + buildHintText(method);
+                            }else{
+                                hintText = "public  " + buildHintText(method);
+                            }
                             InlayPresentation presentation = createClickablePresentation(factory, hintText, method);
                             sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, presentation);
                         }
