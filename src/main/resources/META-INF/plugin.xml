@@ -1,21 +1,39 @@
 <idea-plugin>
-    <id>com.example.transparentClass</id>
+    <id>com.github.junyeong.transparentClass</id>
     <name>TransparentClass</name>
     <vendor>Tpc</vendor>
 
-    <description><![CDATA[
-    Show inherited members in the editor.
-    ]]></description>
+    <version>1.0.0</version>
+
+    <idea-version since-build="231" until-build="241.*" />
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
 
-    <extensions defaultExtensionNs="com.intellij">
+    <description><![CDATA[
+    <h2>Transparent Class Plugin</h2>
+    <p>
+      Shows non-private inherited fields and methods from the superclass directly inside your class editor.
+      This makes it easier to understand the full capabilities of a class without navigating to the parent class.
+    </p>
+    <ul>
+      <li>Displays inherited members as inlay hints.</li>
+      <li>Click on a hint to navigate to the member's declaration.</li>
+    </ul>
+    ]]></description>
 
+    <change-notes><![CDATA[
+    <h3>Version 1.0.0</h3>
+    <ul>
+      <li>Initial release of the Transparent Class plugin.</li>
+      <li>Show inherited public/protected fields and methods.</li>
+    </ul>
+    ]]></change-notes>
+
+    <extensions defaultExtensionNs="com.intellij">
         <codeInsight.inlayProvider language="JAVA"
                                    implementationClass="com.example.transparentclass.inlay.InheritedMembersInlayProvider"
                                    isEnabledByDefault="true"
         />
-
     </extensions>
 </idea-plugin>
