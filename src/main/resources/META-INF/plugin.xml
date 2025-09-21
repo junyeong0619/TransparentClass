@@ -14,7 +14,8 @@
 
         <codeInsight.inlayProvider language="JAVA"
                                    implementationClass="com.example.transparentclass.inlay.InheritedMembersInlayProvider"
-                                   enabledByDefault="true"/>
+                                   isEnabledByDefault="true"
+        />
 
     </extensions>
 </idea-plugin>
