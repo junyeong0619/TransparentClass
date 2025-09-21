@@ -4,12 +4,15 @@ import com.intellij.codeInsight.hints.*;
 import com.intellij.codeInsight.hints.presentation.InlayPresentation;
 import com.intellij.codeInsight.hints.presentation.PresentationFactory;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.pom.Navigatable;
 import com.intellij.psi.*;
+import com.intellij.ui.JBColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -34,7 +37,7 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                 Set<String> currentFieldNames = Arrays.stream(psiClass.getFields()).map(PsiField::getName).collect(Collectors.toSet());
                 for (PsiField field : superClass.getFields()) {
                     if (!field.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !currentFieldNames.contains(field.getName())) {
-                        String hintText = String.format("%s: %s %s", superClass.getName(),field.getType().getPresentableText(), field.getName());
+                        String hintText = String.format("%s: %s %s", superClass.getName(), field.getType().getPresentableText(), field.getName());
                         InlayPresentation presentation = createClickablePresentation(factory, hintText, field);
                         sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, presentation);
                     }
@@ -47,9 +50,10 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                     if (!method.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !method.isConstructor() && !currentMethodNames.contains(method.getName())) {
                         String signature = getMethodSignature(method);
                         if (processedSignatures.add(signature)) {
-                            String hintText = superClass.getName()+ ": " + buildHintText(method);
+                            String hintText = superClass.getName() + ": " + buildHintText(method);
                             InlayPresentation presentation = createClickablePresentation(factory, hintText, method);
-                            sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, presentation);                        }
+                            sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, presentation);
+                        }
                     }
                 }
             }
@@ -60,7 +64,9 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
     private InlayPresentation createClickablePresentation(PresentationFactory factory, String text, PsiElement element) {
         InlayPresentation textPresentation = factory.text(text);
 
-        return factory.referenceOnHover(textPresentation, (mouseEvent, point) -> {
+        InlayPresentation finalPresentation = factory.roundWithBackground(textPresentation);
+
+        return factory.referenceOnHover(finalPresentation, (mouseEvent, point) -> {
             if (element instanceof Navigatable) {
                 ((Navigatable) element).navigate(true);
             }
