@@ -1,29 +1,48 @@
 plugins {
     id("java")
-    id("org.jetbrains.intellij") version "1.17.3"
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.intellij.platform") version "2.7.1"
 }
 
 group = "com.example"
-version = "1.0.1-SNAPSHOT"
+version = "1.0.2-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
-intellij {
-    version.set("2023.2.6")
-    type.set("IC") // Target IDE Platform
-    plugins.set(listOf("com.intellij.java"))
+dependencies {
+    intellijPlatform {
+        create("IC", "2025.1.4.1")
+        bundledPlugin("com.intellij.java") // Java 플러그인 의존성 추가
+        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
+    }
+}
+
+intellijPlatform {
+    pluginConfiguration {
+        ideaVersion {
+            sinceBuild = "251"
+        }
+
+        changeNotes = """
+            Initial version
+        """.trimIndent()
+    }
 }
 
 tasks {
     withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+        sourceCompatibility = "21"
+        targetCompatibility = "21"
     }
+}
 
-    patchPluginXml {
-        sinceBuild.set("232")
-        untilBuild.set("242.*")
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }

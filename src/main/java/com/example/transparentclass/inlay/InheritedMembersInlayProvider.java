@@ -2,7 +2,6 @@ package com.example.transparentclass.inlay;
 
 import com.intellij.codeInsight.hints.*;
 import com.intellij.codeInsight.hints.presentation.InlayPresentation;
-import com.intellij.codeInsight.hints.presentation.PresentationFactory;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.pom.Navigatable;
 import com.intellij.psi.*;
@@ -18,100 +17,163 @@ import java.util.stream.Collectors;
 @SuppressWarnings("UnstableApiUsage")
 public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSettings> {
 
+    private static final SettingsKey<NoSettings> SETTINGS_KEY = new SettingsKey<>("java.inherited.members");
+
     @NotNull
     @Override
-    public InlayHintsCollector getCollectorFor(@NotNull PsiFile file, @NotNull Editor editor, @NotNull NoSettings settings, @NotNull InlayHintsSink sink) {
-        return (element, editor1, sink1) -> {
-            boolean isFieldExist =  false;
-            boolean isMethodExist =  false;
+    public InlayHintsCollector getCollectorFor(@NotNull PsiFile file, @NotNull Editor editor,
+                                               @NotNull NoSettings settings, @NotNull InlayHintsSink sink) {
+        return new FactoryInlayHintsCollector(editor) {
+            @Override
+            public boolean collect(@NotNull PsiElement element, @NotNull Editor editor, @NotNull InlayHintsSink sink) {
+                if (element instanceof PsiClass psiClass) {
+                    PsiElement lBraceElement = psiClass.getLBrace();
+                    if (!(lBraceElement instanceof PsiJavaToken)) return true;
 
+                    PsiClass superClass = psiClass.getSuperClass();
+                    if (superClass == null || "java.lang.Object".equals(superClass.getQualifiedName())) {
+                        return true;
+                    }
 
-
-            if (element instanceof PsiClass psiClass) {
-                PsiElement lBraceElement = psiClass.getLBrace();
-                if (!(lBraceElement instanceof PsiJavaToken)) return true;
-
-                PresentationFactory factory = new PresentationFactory(editor1);
-                PsiClass superClass = psiClass.getSuperClass();
-                if (superClass == null || "Object".equals(superClass.getName())) return true;
-
-
-                tpcPrint(factory.text("Inherited Fields"), sink1, lBraceElement);
-
-                //fields
-                Set<String> currentFieldNames = Arrays.stream(psiClass.getFields()).map(PsiField::getName).collect(Collectors.toSet());
-                if(!currentFieldNames.isEmpty()){
-                    isFieldExist = true;
+                    boolean hasInheritedFields = showInheritedFields(psiClass, superClass, sink, lBraceElement);
+                    showInheritedMethods(psiClass, superClass, sink, lBraceElement, hasInheritedFields);
                 }
+                return true;
+            }
+
+            private boolean showInheritedFields(PsiClass psiClass, PsiClass superClass,
+                                                InlayHintsSink sink, PsiElement lBraceElement) {
+                Set<String> currentFieldNames = Arrays.stream(psiClass.getFields())
+                        .map(PsiField::getName)
+                        .collect(Collectors.toSet());
+
+                boolean hasFields = false;
+
                 for (PsiField field : superClass.getFields()) {
-                    if (!field.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !currentFieldNames.contains(field.getName())) {
-                        String hintText;
-                        if(field.hasModifierProperty(PsiModifier.PROTECTED)) {
-                            hintText = String.format("%s %s %s", "protected", field.getType().getPresentableText(), field.getName());
-                        }else{
-                            hintText = String.format("%s %s %s", "public", field.getType().getPresentableText(), field.getName());
+                    if (shouldShowMember(field) && !currentFieldNames.contains(field.getName())) {
+                        if (!hasFields) {
+                            addInlayHint(sink, lBraceElement, "Inherited Fields");
+                            hasFields = true;
                         }
-                        tpcPrint(createClickablePresentation(factory, hintText, field), sink1, lBraceElement);
+
+                        String visibility = getVisibilityModifier(field);
+                        String hintText = String.format("%s %s %s",
+                                visibility,
+                                field.getType().getPresentableText(),
+                                field.getName());
+
+                        addClickableInlayHint(sink, lBraceElement, hintText, field);
                     }
                 }
 
-                tpcPrint(factory.text(" "), sink1, lBraceElement);
-                tpcPrint(factory.text("Inherited Methods "), sink1, lBraceElement);
+                return hasFields;
+            }
 
+            private void showInheritedMethods(PsiClass psiClass, PsiClass superClass,
+                                              InlayHintsSink sink, PsiElement lBraceElement, boolean hasInheritedFields) {
+                Set<String> currentMethodSignatures = Arrays.stream(psiClass.getMethods())
+                        .map(this::getMethodSignature)
+                        .collect(Collectors.toSet());
 
-                // method
-                Set<String> currentMethodNames = Arrays.stream(psiClass.getMethods()).map(PsiMethod::getName).collect(Collectors.toSet());
                 Set<String> processedSignatures = new HashSet<>();
+                boolean hasMethod = false;
+
                 for (PsiMethod method : superClass.getMethods()) {
-                    if (!method.getModifierList().hasModifierProperty(PsiModifier.PRIVATE) && !method.isConstructor() && !currentMethodNames.contains(method.getName())) {
+                    if (shouldShowMember(method) && !method.isConstructor() &&
+                            !currentMethodSignatures.contains(getMethodSignature(method))) {
+
                         String signature = getMethodSignature(method);
-                        String hintText;
                         if (processedSignatures.add(signature)) {
-                            if(method.hasModifierProperty(PsiModifier.PROTECTED)){
-                                hintText =  "protected " + buildHintText(method);
-                            }else{
-                                hintText = "public  " + buildHintText(method);
+                            if (!hasMethod) {
+                                if (hasInheritedFields) {
+                                    addInlayHint(sink, lBraceElement, " ");
+                                }
+                                addInlayHint(sink, lBraceElement, "Inherited Methods");
+                                hasMethod = true;
                             }
-                            tpcPrint(createClickablePresentation(factory, hintText, method), sink1, lBraceElement);
+
+                            String visibility = getVisibilityModifier(method);
+                            String hintText = visibility + " " + buildHintText(method);
+                            addClickableInlayHint(sink, lBraceElement, hintText, method);
                         }
                     }
                 }
             }
-            return true;
+
+            private void addInlayHint(InlayHintsSink sink, PsiElement element, String text) {
+                InlayPresentation presentation = getFactory().text(text);
+                sink.addBlockElement(element.getTextOffset() + 1, true, true, 0, presentation);
+            }
+
+            private void addClickableInlayHint(InlayHintsSink sink, PsiElement element, String text, PsiElement targetElement) {
+                InlayPresentation textPresentation = getFactory().text(text);
+                InlayPresentation backgroundPresentation = getFactory().roundWithBackground(textPresentation);
+
+                InlayPresentation clickablePresentation = getFactory().referenceOnHover(backgroundPresentation,
+                        (mouseEvent, point) -> {
+                            if (targetElement instanceof Navigatable navigatable) {
+                                navigatable.navigate(true);
+                            }
+                        });
+
+                sink.addBlockElement(element.getTextOffset() + 1, true, true, 0, clickablePresentation);
+            }
+
+            private boolean shouldShowMember(PsiModifierListOwner member) {
+                PsiModifierList modifierList = member.getModifierList();
+                return modifierList != null && !modifierList.hasModifierProperty(PsiModifier.PRIVATE);
+            }
+
+            private String getVisibilityModifier(PsiModifierListOwner member) {
+                if (member.hasModifierProperty(PsiModifier.PROTECTED)) {
+                    return "protected";
+                } else if (member.hasModifierProperty(PsiModifier.PUBLIC)) {
+                    return "public";
+                }
+                return "package";
+            }
+
+            private String buildHintText(PsiMethod method) {
+                String returnType = method.getReturnType() != null ?
+                        method.getReturnType().getPresentableText() : "void";
+                String params = Arrays.stream(method.getParameterList().getParameters())
+                        .map(p -> p.getType().getPresentableText())
+                        .collect(Collectors.joining(", "));
+                return String.format("%s %s(%s)", returnType, method.getName(), params);
+            }
+
+            private String getMethodSignature(PsiMethod method) {
+                String params = Arrays.stream(method.getParameterList().getParameters())
+                        .map(p -> p.getType().getCanonicalText())
+                        .collect(Collectors.joining(","));
+                return method.getName() + "(" + params + ")";
+            }
         };
     }
 
-    private static void tpcPrint(InlayPresentation factory, InlayHintsSink sink1, PsiElement lBraceElement) {
-        InlayPresentation spacer = factory;
-        sink1.addBlockElement(lBraceElement.getTextOffset() + 1, true, true, 0, spacer);
+    @NotNull
+    @Override
+    public String getName() {
+        return "Inherited Members";
     }
 
-    private InlayPresentation createClickablePresentation(PresentationFactory factory, String text, PsiElement element) {
-        InlayPresentation textPresentation = factory.text(text);
-
-        InlayPresentation finalPresentation = factory.roundWithBackground(textPresentation);
-
-        return factory.referenceOnHover(finalPresentation, (mouseEvent, point) -> {
-            if (element instanceof Navigatable) {
-                ((Navigatable) element).navigate(true);
-            }
-        });
+    @NotNull
+    @Override
+    public SettingsKey<NoSettings> getKey() {
+        return SETTINGS_KEY;
     }
 
-    private String buildHintText(PsiMethod method) {
-        String returnType = method.getReturnType() != null ? method.getReturnType().getPresentableText() : "void";
-        String params = Arrays.stream(method.getParameterList().getParameters()).map(p -> p.getType().getPresentableText()).collect(Collectors.joining(", "));
-        return String.format("%s %s(%s)", returnType, method.getName(), params);
-    }
-    private String getMethodSignature(PsiMethod method) {
-        String params = Arrays.stream(method.getParameterList().getParameters()).map(p -> p.getType().getCanonicalText()).collect(Collectors.joining(","));
-        return method.getName() + "(" + params + ")";
+    @NotNull
+    @Override
+    public NoSettings createSettings() {
+        return new NoSettings();
     }
 
-    @NotNull @Override public String getName() { return "Inherited Members"; }
-    @NotNull @Override public SettingsKey<NoSettings> getKey() { return new SettingsKey<>("java.inherited.members"); }
-    @NotNull @Override public NoSettings createSettings() { return new NoSettings(); }
-    @Nullable @Override public String getPreviewText() { return null; }
+    @Nullable
+    @Override
+    public String getPreviewText() {
+        return null;
+    }
 
     @NotNull
     @Override
