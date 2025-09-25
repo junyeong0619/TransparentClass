@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.example"
-version = "1.0.2-SNAPSHOT"
+version = "1.0.3-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -17,7 +17,7 @@ repositories {
 dependencies {
     intellijPlatform {
         create("IC", "2025.1.4.1")
-        bundledPlugin("com.intellij.java") // Java 플러그인 의존성 추가
+        bundledPlugin("com.intellij.java")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     }
 }

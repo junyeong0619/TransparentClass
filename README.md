@@ -8,23 +8,27 @@ The Transparent Class plugin shows non-private inherited fields and methods from
 
 ## Features
 
-* **Display Inherited Members**: Displays inherited members as inlay hints.
+* **Deep Inheritance View**: Displays inherited members from the entire class hierarchy, not just the direct parent.
+* **Source Class Display**: Shows the name of the class from which each member is inherited, formatted like `public void Parent.test()`.
 * **Quick Navigation**: Click on a hint to navigate to the member's declaration.
-* **Visibility**: Shows inherited public/protected fields and methods.
+* **Smart Filtering**: Hides common members from `java.lang.Object` for a cleaner interface.
 
 ## Example Usage
+**Superclass (`GrandParent.java`):**
+<img src="pictures/GrandParent_photo.png" alt="Parent class code" />
 
-**Before applying the plugin:**
 
-<img src="pictures/parent.png" alt="" />
+**Superclass (`Parent.java`):**
 
-**After applying the plugin:**
+<img src="pictures/Parent_photo.png" alt="Parent class code" />
 
-<img src="pictures/child.png" alt="" />
+**Subclass (`Child.java`) with the plugin active:**
+
+<img src="pictures/Child_photo.png" alt="Child class with inlay hints" />
 
 ## Compatibility
 
-* **IntelliJ IDEA Version**: 2023.2.6
+* **IntelliJ IDEA Version**: 2025.2.2
 * **Plugin Compatibility**: Supports from version 232 (2023.2) to 242.\* (2024.2.\*)
 * **Language**: JAVA
 

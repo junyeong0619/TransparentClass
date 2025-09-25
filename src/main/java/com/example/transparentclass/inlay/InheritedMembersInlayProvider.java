@@ -27,74 +27,89 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
             @Override
             public boolean collect(@NotNull PsiElement element, @NotNull Editor editor, @NotNull InlayHintsSink sink) {
                 if (element instanceof PsiClass psiClass) {
-                    PsiElement lBraceElement = psiClass.getLBrace();
-                    if (!(lBraceElement instanceof PsiJavaToken)) return true;
-
-                    PsiClass superClass = psiClass.getSuperClass();
-                    if (superClass == null || "java.lang.Object".equals(superClass.getQualifiedName())) {
+                    if ("java.lang.Object".equals(psiClass.getQualifiedName())) {
                         return true;
                     }
 
-                    boolean hasInheritedFields = showInheritedFields(psiClass, superClass, sink, lBraceElement);
-                    showInheritedMethods(psiClass, superClass, sink, lBraceElement, hasInheritedFields);
+                    PsiElement lBraceElement = psiClass.getLBrace();
+                    if (!(lBraceElement instanceof PsiJavaToken)) return true;
+
+                    boolean hasInheritedFields = showInheritedFields(psiClass, sink, lBraceElement);
+                    showInheritedMethods(psiClass, sink, lBraceElement, hasInheritedFields);
                 }
                 return true;
             }
 
-            private boolean showInheritedFields(PsiClass psiClass, PsiClass superClass,
-                                                InlayHintsSink sink, PsiElement lBraceElement) {
-                Set<String> currentFieldNames = Arrays.stream(psiClass.getFields())
-                        .map(PsiField::getName)
-                        .collect(Collectors.toSet());
+            private boolean showInheritedFields(PsiClass psiClass, InlayHintsSink sink, PsiElement lBraceElement) {
+                Set<PsiField> allFields = new HashSet<>(Arrays.asList(psiClass.getAllFields()));
+                Set<PsiField> declaredFields = new HashSet<>(Arrays.asList(psiClass.getFields()));
+                allFields.removeAll(declaredFields);
 
                 boolean hasFields = false;
-
-                for (PsiField field : superClass.getFields()) {
-                    if (shouldShowMember(field) && !currentFieldNames.contains(field.getName())) {
-                        if (!hasFields) {
-                            addInlayHint(sink, lBraceElement, "Inherited Fields");
-                            hasFields = true;
+                if (!allFields.isEmpty()) {
+                    for (PsiField field : allFields) {
+                        PsiClass containingClass = field.getContainingClass();
+                        if (containingClass != null && "java.lang.Object".equals(containingClass.getQualifiedName())) {
+                            continue;
                         }
 
-                        String visibility = getVisibilityModifier(field);
-                        String hintText = String.format("%s %s %s",
-                                visibility,
-                                field.getType().getPresentableText(),
-                                field.getName());
-
-                        addClickableInlayHint(sink, lBraceElement, hintText, field);
+                        if (shouldShowMember(field)) {
+                            if (!hasFields) {
+                                addInlayHint(sink, lBraceElement, "Inherited Fields");
+                                hasFields = true;
+                            }
+                            String className = containingClass != null ? containingClass.getName() : "";
+                            String visibility = getVisibilityModifier(field);
+                            String hintText = String.format("%s %s %s.%s",
+                                    visibility,
+                                    field.getType().getPresentableText(),
+                                    className,
+                                    field.getName());
+                            addClickableInlayHint(sink, lBraceElement, hintText, field);
+                        }
                     }
                 }
-
                 return hasFields;
             }
 
-            private void showInheritedMethods(PsiClass psiClass, PsiClass superClass,
-                                              InlayHintsSink sink, PsiElement lBraceElement, boolean hasInheritedFields) {
-                Set<String> currentMethodSignatures = Arrays.stream(psiClass.getMethods())
-                        .map(this::getMethodSignature)
-                        .collect(Collectors.toSet());
+            private void showInheritedMethods(PsiClass psiClass, InlayHintsSink sink, PsiElement lBraceElement, boolean hasInheritedFields) {
+                Set<PsiMethod> allMethods = new HashSet<>(Arrays.asList(psiClass.getAllMethods()));
+                Set<PsiMethod> declaredMethods = new HashSet<>(Arrays.asList(psiClass.getMethods()));
+                allMethods.removeAll(declaredMethods);
 
-                Set<String> processedSignatures = new HashSet<>();
-                boolean hasMethod = false;
+                boolean hasMethods = false;
+                if (!allMethods.isEmpty()) {
+                    Set<String> processedSignatures = new HashSet<>();
+                    for (PsiMethod method : allMethods) {
+                        PsiClass containingClass = method.getContainingClass();
+                        if (containingClass != null && "java.lang.Object".equals(containingClass.getQualifiedName())) {
+                            continue;
+                        }
 
-                for (PsiMethod method : superClass.getMethods()) {
-                    if (shouldShowMember(method) && !method.isConstructor() &&
-                            !currentMethodSignatures.contains(getMethodSignature(method))) {
-
-                        String signature = getMethodSignature(method);
-                        if (processedSignatures.add(signature)) {
-                            if (!hasMethod) {
-                                if (hasInheritedFields) {
-                                    addInlayHint(sink, lBraceElement, " ");
+                        if (shouldShowMember(method) && !method.isConstructor()) {
+                            String signature = getMethodSignature(method);
+                            if (processedSignatures.add(signature)) {
+                                if (!hasMethods) {
+                                    if (hasInheritedFields) {
+                                        addInlayHint(sink, lBraceElement, " ");
+                                    }
+                                    addInlayHint(sink, lBraceElement, "Inherited Methods");
+                                    hasMethods = true;
                                 }
-                                addInlayHint(sink, lBraceElement, "Inherited Methods");
-                                hasMethod = true;
+                                String className = containingClass != null ? containingClass.getName() : "";
+                                String visibility = getVisibilityModifier(method);
+                                String returnType = method.getReturnType() != null ? method.getReturnType().getPresentableText() : "void";
+                                String params = Arrays.stream(method.getParameterList().getParameters())
+                                        .map(p -> p.getType().getPresentableText())
+                                        .collect(Collectors.joining(", "));
+                                String hintText = String.format("%s %s %s.%s(%s)",
+                                        visibility,
+                                        returnType,
+                                        className,
+                                        method.getName(),
+                                        params);
+                                addClickableInlayHint(sink, lBraceElement, hintText, method);
                             }
-
-                            String visibility = getVisibilityModifier(method);
-                            String hintText = visibility + " " + buildHintText(method);
-                            addClickableInlayHint(sink, lBraceElement, hintText, method);
                         }
                     }
                 }
@@ -131,15 +146,6 @@ public class InheritedMembersInlayProvider implements InlayHintsProvider<NoSetti
                     return "public";
                 }
                 return "package";
-            }
-
-            private String buildHintText(PsiMethod method) {
-                String returnType = method.getReturnType() != null ?
-                        method.getReturnType().getPresentableText() : "void";
-                String params = Arrays.stream(method.getParameterList().getParameters())
-                        .map(p -> p.getType().getPresentableText())
-                        .collect(Collectors.joining(", "));
-                return String.format("%s %s(%s)", returnType, method.getName(), params);
             }
 
             private String getMethodSignature(PsiMethod method) {

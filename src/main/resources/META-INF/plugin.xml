@@ -3,7 +3,7 @@
     <name>TransparentClass</name>
     <vendor>Tpc</vendor>
 
-    <version>1.0.1</version>
+    <version>1.0.3</version>
 
     <idea-version since-build="231" until-build="241.*" />
 
@@ -23,6 +23,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>Version 1.0.3</h3>
+    <ul>
+      <li>Expanded functionality to display members from the entire inheritance hierarchy.</li>
+      <li>Improved the hint format to also display the source class (e.g., <code>public void Parent.method()</code>).</li>
+      <li>Increased readability by filtering out common members from <code>java.lang.Object</code>.</li>
+    </ul>
     <h3>Version 1.0.2</h3>
     <ul>
       <li>Initial release of the Transparent Class plugin.</li>
